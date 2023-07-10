@@ -16,7 +16,7 @@ class TestIO(unittest.TestCase):
 
     def _some_side_effect_with_parameter(self, *args):
         self._call_with = args
-        return IO.pure(args)
+        return IO.eval(self._some_side_effect)
 
     def some_side_effect(self) -> IO[None]:
         return IO.eval(self._some_side_effect)
@@ -24,18 +24,27 @@ class TestIO(unittest.TestCase):
     def some_side_effect_with_parameter(self) -> IO[Any]:
         return IO.eval(self._some_side_effect)
 
-    def test_referential_transparency(self):
+    def test_referential_transparency_and_operator(self):
         effect = self.some_side_effect()
-        (effect >> effect >> effect >> effect).unsafe_run()
+        (effect & effect & effect & effect).unsafe_run()
         self.assertEqual(self._call, 4)
-        a = effect >> effect
-        (a >> a).unsafe_run()
+        a = effect & effect
+        (a & a).unsafe_run()
         self.assertEqual(self._call, 8)
+
+    def test_referential_transparency_plus_operator(self):
+        effect = self.some_side_effect()
+        (effect + effect + effect + effect).unsafe_run()
+        self.assertEqual(self._call, 4)
+        a = effect + effect
+        (a + a).unsafe_run()
+        self.assertEqual(self._call, 8)
+
 
     def test_lazy(self):
         self.some_side_effect()
         self.assertEqual(self._call, 0)
-        self.some_side_effect() >> self.some_side_effect() >> self.some_side_effect()
+        _ = self.some_side_effect() >> self.some_side_effect >> self.some_side_effect
         self.assertEqual(self._call, 0)
 
     def test_passing_results(self):
@@ -44,12 +53,6 @@ class TestIO(unittest.TestCase):
         io.unsafe_run()
         self.assertEqual(self._call_with, ("value",))
 
-    def test_right_associativity(self):
-        """Associativity needs to be implemented"""
-
-    def test_left_identity(self):
-        """for simple types it makes sense"""
-        IO.pure("a") >> (lambda x: 2 * x) == IO.pure("aa")
 
     def test_repeat(self):
         self.some_side_effect().repeat(4).unsafe_run()
@@ -62,8 +65,7 @@ class TestIO(unittest.TestCase):
         (
             (IO.pure("test") & IO.pure(123)) >> self._some_side_effect_with_parameter
         ).unsafe_run()
-        self.assertEqual(self._call_with, (["test", 123],))
-
+        self.assertEqual(self._call_with, (("test", 123),))
 
 
 if __name__ == "__main__":

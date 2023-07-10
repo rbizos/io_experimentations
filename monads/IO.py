@@ -1,20 +1,22 @@
-from typing import Callable, Generic, TypeVar, ParamSpec
+from typing import Callable, Generic, TypeVar, Tuple
 from dataclasses import dataclass
 
 T = TypeVar("T")
-B = ParamSpec("B")
+B = TypeVar("B")
 
 
-def sequential_exec(obj):
+def sequential_exec(obj) -> object:
     """
     iterates through the IO and runs them, simpler for of control flow to debug
     """
     while True:
+        # print(obj)
         match obj:
-            case IO() | _ if callable(obj):
-                # IO is callable but this makes it explicit
-                obj = obj()
-            case _ if isinstance(obj, list):
+            case IO.unit:
+                return
+            case IO():
+                obj = obj._effect()
+            case _ if isinstance(obj, tuple):
                 return [sequential_exec(member) for member in obj]
             case _:
                 return obj
@@ -30,8 +32,6 @@ class IO(Generic[T]):
     Todo:
         - error handling
         - retries, timeout ...
-        - scheduler for real asynchronicity
-        - parallelism, joins etc...
 
     Usage:
     main = IO.print("hello")\
@@ -45,15 +45,23 @@ class IO(Generic[T]):
 
     _effect: Callable[[], T]
 
-    def __call__(self, *args, **kwargs) -> T:
-        """
-        IO[T] is itself a Callable[[], T] this is used for dereferencing nested effects
-        :return:
-        """
-        return self._effect()
+    @classmethod
+    @property
+    def unit(cls) -> "IO[None]":
+        return cls(None)
+
+    @staticmethod
+    def flatten(io: "IO[IO[T]]") -> "IO[T]":
+        return IO(lambda: io._effect())
 
     def flat_map(self, f: Callable[[T], "IO[B]"]) -> "IO[B]":
-        return IO(lambda: f(self._effect()))
+        return self.flatten(IO(lambda: f(self._effect())))
+
+    def chain(self, other: "IO[B]") -> "IO[B]":
+        return self >> (lambda _: other._effect())
+
+    def gather(self, other: "IO[B]") -> "IO[Tuple[T, B]]":
+        return IO(lambda: (self._effect(), other._effect()))
 
     @classmethod
     def pure(cls, t: T) -> "IO[T]":
@@ -65,10 +73,6 @@ class IO(Generic[T]):
 
     def unsafe_run(self):
         return sequential_exec(self)
-
-    @staticmethod
-    def _do_unsafe_run(self, obj):
-        pass
 
     @staticmethod
     def print(text) -> "IO[None]":
@@ -84,16 +88,10 @@ class IO(Generic[T]):
     def repeat(self, times: int):
         res = self
         for i in range(1, times):
-            res = res >> self
+            res = res + self
         return res
 
-    def flat_map(self, f: Callable[[T], "IO[B]"]) -> "IO[B]":
-        return IO(lambda: f(self._effect()))
-
-    def gather(self, other: "IO[B]") -> "IO[Tuple[T,B]]":
-        return IO(lambda: [self._effect(), other._effect()])
-
-    def __and__(self, other: "IO[B]") -> "IO[Tuple[T,B]]":
+    def __and__(self, other: "IO[B]") -> "IO[Tuple[T, B]]":
         return self.gather(other)
 
     def __mul__(self, times: int):
@@ -102,8 +100,10 @@ class IO(Generic[T]):
     def __rshift__(self, func):
         return self.flat_map(func)
 
-    def __eq__(self, other) -> bool:
-        return self._effect() == self._effect()
+    def __eq__(self, other: "IO[Any]") -> bool:
+        if not self._effect and isinstance(other, IO) and not other._effect:
+            return True
+        return False
 
-
-# main.unsafe_run()
+    def __add__(self, other: "IO[B]") -> "IO[B]":
+        return self.chain(other)
