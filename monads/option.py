@@ -1,38 +1,41 @@
+from abc import ABC
+from .monad import Monad
+from typing import Callable
 import dataclasses
-from typing import Callable, Generic, TypeVar, ParamSpec
-
-T = TypeVar("T")
-B = ParamSpec("B")
 
 
-class Option(Generic[T]):
-    pass
+class Option[T](Monad[T], ABC):
+    ...
 
 
 @dataclasses.dataclass
-class Some(Option[T]):
+class Some[T](Option[T]):
     _value: T
 
-    def flat_map(self, f: Callable[[T], Option[B]]) -> Option[B]:
+    def flat_map[B](self, f: Callable[[T], Option[B]]) -> Option[B]:
         return f(self._value)
 
-    def map(self, f: Callable[[T], B]) -> Option[B]:
+    def map[B](self, f: Callable[[T], B]) -> Option[B]:
         return Some(f(self._value))
 
     def or_else(self, v: T):
         return self
 
+    @staticmethod
+    def unit(a: T) -> "Some[T]":
+        return Some(a)
 
-class Null(Option[T]):
-    def map(self, f: Callable[[T], B]) -> Option[B]:
-        return self
 
-    def flat_map(self, f: Callable[[T], Option[B]]) -> Option[B]:
-        return self
+class Null[T](Option[T]):
+    def map[B](self, f: Callable[[T], B]) -> Option[B]:
+        return Null[B]()
+
+    def flat_map[B](self, f: Callable[[T], Option[B]]) -> Option[B]:
+        return Null[B]()
 
     def or_else(self, v: T):
         return Some(v)
 
-
-Some("str").or_else("lol").map(print)
-Null().or_else("lol").map(print)
+    @staticmethod
+    def unit(a: T) -> "Null[T]":
+        return Null[T]()

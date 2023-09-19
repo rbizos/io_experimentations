@@ -1,5 +1,5 @@
 import unittest
-from monads.IO import IO
+from monads.IO_first import IO
 from typing import Any
 
 
@@ -40,7 +40,6 @@ class TestIO(unittest.TestCase):
         (a + a).unsafe_run()
         self.assertEqual(self._call, 8)
 
-
     def test_lazy(self):
         self.some_side_effect()
         self.assertEqual(self._call, 0)
@@ -53,7 +52,6 @@ class TestIO(unittest.TestCase):
         io.unsafe_run()
         self.assertEqual(self._call_with, ("value",))
 
-
     def test_repeat(self):
         self.some_side_effect().repeat(4).unsafe_run()
         self.assertEqual(self._call, 4)
@@ -65,7 +63,7 @@ class TestIO(unittest.TestCase):
         (
             (IO.pure("test") & IO.pure(123)) >> self._some_side_effect_with_parameter
         ).unsafe_run()
-        self.assertEqual(self._call_with, (("test", 123),))
+        self.assertEqual(self._call_with, (["test", 123],))
 
 
 if __name__ == "__main__":
