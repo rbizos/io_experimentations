@@ -25,4 +25,5 @@ def perform_io_operation_2(data: int) -> IO[str]:
 io_1 = IO(perform_io_operation_1).flat_map(perform_io_operation_2)
 io_2 = IO.parallel_map([io_1, io_1, io_1, io_1])
 
-print(asyncio.run(io_2.run(), loop_factory=lambda: loop))
+
+io_2.run()

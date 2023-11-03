@@ -13,7 +13,7 @@ class IO[T](Monad[T]):
         else:
             self.func = _apply_in_executor
 
-    async def run(self) -> T:
+    async def _apply(self) -> T:
         if asyncio.iscoroutinefunction(self.func):
             return await self.func()
         return self.func()
@@ -28,7 +28,7 @@ class IO[T](Monad[T]):
             This is a bit more complex than a simple lambda, but it allows to run the effects in parallel without
             blocking the scheduler thread. Only the application of the function is sent to the executor thread.
             """
-            result_io = await self.run()
+            result_io = await self._apply()
             return await asyncio.get_running_loop().run_in_executor(
                 None, func, result_io
             )
@@ -42,7 +42,7 @@ class IO[T](Monad[T]):
         """
 
         async def _apply() -> B:
-            return await (await io.run()).run()
+            return await (await io._apply())._apply()
 
         return IO(_apply)
 
@@ -59,10 +59,37 @@ class IO[T](Monad[T]):
         """
 
         async def parallel_map_async():
-            return await asyncio.gather(*[io.run() for io in io_list])
+            return await asyncio.gather(*[io._apply() for io in io_list])
 
         return IO(parallel_map_async)
 
     @classmethod
     def unit(cls, value: T) -> "IO[T]":
         return cls(lambda: value)
+
+    def repeat(self, times: int):
+        res = self
+        for i in range(1, times):
+            res = res + self
+        return res
+
+    def __rshift__[B](self, func: Callable[[T], "IO[B]"]) -> "IO[B]":
+        return self.flat_map(func)
+
+    def __add__(self, other: "IO[Any]") -> "IO[Any]":
+        return self.flat_map(lambda _: other)
+
+    def __and__(self, other: "IO[Any]") -> "IO[Tuple[Any, Any]]":
+        return IO.parallel_map([self, other])
+
+    def __mul__(self, times: int) -> "IO[List[Any]]":
+        return self.repeat(times)
+
+    def run(self, loop: asyncio.AbstractEventLoop = None):
+        if loop:
+            return loop.run_until_complete(self._apply())
+        else:
+            return asyncio.run(self._apply())
+
+    print = lambda text: IO(lambda: print(text))
+    input = lambda prompt: IO(lambda: input(prompt))
