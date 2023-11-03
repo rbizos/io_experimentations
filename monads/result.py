@@ -1,8 +1,7 @@
 import dataclasses
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Self
 from .monad import Monad
-
 
 @dataclasses.dataclass
 class Ok[T](Monad[T]):
@@ -18,11 +17,12 @@ class Ok[T](Monad[T]):
     def or_else(self, _: T):
         return self
 
-    def try_apply[B, E](self, f: "Callable[[T], B]") -> "Result[B, E]":
+    def try_apply[B](self, f: "Callable[[T], B]") -> "Result[B, Exception]":
         try:
             return Ok(f(self._value))
         except Exception as e:
             return Err(e)
+
 
 @dataclasses.dataclass
 class Err[T](Monad[T]):
@@ -32,23 +32,20 @@ class Err[T](Monad[T]):
     def unit(a: T) -> "Err[T]":
         return Err(a)
 
-    def flat_map[B, E](self, f: "Callable[[T], Result[B]]") -> "Result[B, E]":
+    def flat_map[B, E](self, f: "Callable[[T], Result[B, E]]") -> "Self":
         return self
 
-    def or_else[B](self, v: B):
-        return Ok[B](v)
+    def or_else[B](self, v: B) -> Ok[B]:
+        return Ok(v)
 
-    def try_apply[B, E](self, f: "Callable[[T], B]") -> "Self":
+    def try_apply(self, _: "Callable") -> "Self":
         return self
+
 
 type Result[T, E] = Ok[T] | Err[E]
 
 
-def Try[
-    T
-](f: Callable[[Any], T], *args: list[Any], **kwargs: dict[str, Any]) -> Result[
-    T, Exception
-]:
+def Try[T](f: Callable[[Any], T], *args: Any, **kwargs: Any) -> Result[T, Exception]:
     try:
         return Ok(f(*args, **kwargs))
     except Exception as e:
