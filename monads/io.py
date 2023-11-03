@@ -1,8 +1,5 @@
 import asyncio
 from typing import Callable, List, Any
-import concurrent.futures
-import threading
-import time
 from .monad import Monad
 
 
@@ -22,29 +19,35 @@ class IO[T](Monad[T]):
         return self.func()
 
     def map[B](self, func: Callable[[T], B]) -> "IO[B]":
-        def new_func() -> Any:
-            result = self.run()
-            return func(result)
-
-        return IO(new_func)
-
-    def flat_map[B](self, func: Callable[[T], "IO[B]"]) -> "IO[B]":
         async def _forward_result() -> T:
             """
             This splits the computation into 3 parts:
-            1. schedule the run of the IO in the scheduler thread, the apply of other effects
+            1. schedule the run of the IO in the scheduler thread, then apply of other effects
             2. apply the provided function in the executor thread
-            3. flatten the result in the scheduler thread with another run
 
             This is a bit more complex than a simple lambda, but it allows to run the effects in parallel without
             blocking the scheduler thread. Only the application of the function is sent to the executor thread.
             """
             result_io = await self.run()
-            return await (
-                await asyncio.get_running_loop().run_in_executor(None, func, result_io)
-            ).run()
+            return await asyncio.get_running_loop().run_in_executor(
+                None, func, result_io
+            )
 
         return IO(_forward_result)
+
+    @staticmethod
+    def flatten[B](io: "IO[IO[B]]") -> "IO[B]":
+        """
+        this method is static to allow to properly type it
+        """
+
+        async def _apply() -> B:
+            return await (await io.run()).run()
+
+        return IO(_apply)
+
+    def flat_map[B](self, func: Callable[[T], "IO[B]"]) -> "IO[B]":
+        return self.flatten(self.map(func))
 
     @staticmethod
     def parallel_map(io_list: List["IO[Any]"]) -> "IO[List[Any]]":

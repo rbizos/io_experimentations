@@ -2,11 +2,13 @@ import concurrent.futures
 import asyncio, threading, time
 from monads.io import IO
 
-thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=5)
 loop = asyncio.new_event_loop()
 loop.set_default_executor(thread_pool)
 
 print(f"Schedule thread: {threading.get_ident()}")
+
+
 def perform_io_operation_1() -> int:
     # Simulate an expensive operation
     print(f"executing effect 1 in thread: {threading.get_ident()}")

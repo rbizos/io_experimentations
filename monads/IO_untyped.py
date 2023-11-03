@@ -1,3 +1,8 @@
+"""
+I'm keeping that as a ref for some ideas but it's eventually going to be removed
+"""
+
+
 from typing import Callable, Generic, TypeVar, Tuple, Any, List, Type
 from dataclasses import dataclass
 from collections.abc import Iterable
