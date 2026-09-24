@@ -1,0 +1,15 @@
+[project]
+name = "io-experimentations"
+version = "0.1.0"
+description = "playing with python generics to implement an IO monad"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = ["pytest", "hypothesis", "ty==0.0.79"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

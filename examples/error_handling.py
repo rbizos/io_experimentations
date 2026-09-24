@@ -15,11 +15,11 @@ def my_function2(i: int) -> str:
         raise Exception("i is zero")
 
 
-my_function(1).or_else("somthing wrong").flat_map(print)
-my_function(0).or_else("somthing wrong").flat_map(print)
+my_function(1).or_else("somthing wrong").map(print)
+my_function(0).or_else("somthing wrong").map(print)
 
-Try(my_function2, 1).or_else("somthing wrong").flat_map(print)
-Try(my_function2, 0).or_else("somthing wrong").flat_map(print)
+Try(my_function2, 1).or_else("somthing wrong").map(print)
+Try(my_function2, 0).or_else("somthing wrong").map(print)
 
-Ok(1).try_apply(my_function2).or_else("somthing wrong").flat_map(print)
-Ok(0).try_apply(my_function2).or_else("somthing wrong").flat_map(print)
+Ok(1).try_apply(my_function2).or_else("somthing wrong").map(print)
+Ok(0).try_apply(my_function2).or_else("somthing wrong").map(print)

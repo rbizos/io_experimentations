@@ -77,6 +77,8 @@ class IO[T](Monad[T]):
         return IO.from_async(_pure)
 
     def repeat(self, times: int) -> "IO[T]":
+        if times < 1:
+            raise ValueError(f"repeat needs times >= 1, got {times}")
         res = self
         for _ in range(1, times):
             res = res + self

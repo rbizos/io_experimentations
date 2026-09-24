@@ -14,7 +14,10 @@ class Ok[T](Monad[T]):
     def flat_map[B, E](self, f: "Callable[[T], Result[B, E]]") -> "Result[B, E]":
         return f(self._value)
 
-    def or_else(self, _: T):
+    def map[B](self, f: Callable[[T], B]) -> "Ok[B]":
+        return Ok(f(self._value))
+
+    def or_else(self, _: T) -> "Ok[T]":
         return self
 
     def try_apply[B](self, f: "Callable[[T], B]") -> "Result[B, Exception]":
@@ -32,7 +35,10 @@ class Err[T](Monad[T]):
     def unit(a: T) -> "Err[T]":
         return Err(a)
 
-    def flat_map[B, E](self, f: "Callable[[T], Result[B, E]]") -> "Self":
+    def flat_map(self, _: Callable[[Any], Any]) -> Self:
+        return self
+
+    def map(self, _: Callable) -> Self:
         return self
 
     def or_else[B](self, v: B) -> Ok[B]:
