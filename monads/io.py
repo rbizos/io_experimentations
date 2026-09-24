@@ -1,6 +1,7 @@
 import asyncio
 from collections.abc import Awaitable, Callable
 from .monad import Monad
+from .result import Err, Ok, Result
 
 
 class IO[T](Monad[T]):
@@ -42,6 +43,19 @@ class IO[T](Monad[T]):
             return await asyncio.get_running_loop().run_in_executor(None, func, result)
 
         return IO.from_async(_forward_result)
+
+    def attempt(self) -> "IO[Result[T, Exception]]":
+        """
+        Reify failure: exceptions raised while running this IO become an Err value instead of propagating.
+        """
+
+        async def _attempt() -> Result[T, Exception]:
+            try:
+                return Ok(await self._apply())
+            except Exception as e:
+                return Err(e)
+
+        return IO.from_async(_attempt)
 
     @staticmethod
     def flatten[B](io: "IO[IO[B]]") -> "IO[B]":
@@ -104,6 +118,12 @@ class IO[T](Monad[T]):
         if loop:
             return loop.run_until_complete(self._apply())
         return asyncio.run(self._apply())
+
+    async def run_async(self) -> T:
+        """
+        Run from inside an already running event loop (e.g. an asyncio callback), where `run` cannot be used.
+        """
+        return await self._apply()
 
     @staticmethod
     def print(text: object) -> "IO[None]":

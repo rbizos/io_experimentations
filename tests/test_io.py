@@ -5,7 +5,7 @@ from functools import reduce
 import pytest
 from hypothesis import given, settings, strategies as st
 
-from monads import IO
+from monads import IO, Err, Ok
 
 # IO has no structural equality: two IOs are equal if running them yields
 # the same value AND performs the same effects in the same order.
@@ -190,3 +190,23 @@ def test_stack_safety():
     n = 10_000
     io = reduce(lambda acc, _: acc.flat_map(lambda x: IO.unit(x + 1)), range(n), IO.unit(0))
     assert io.run() == n
+
+
+@given(st.integers())
+def test_attempt_success_is_ok(a):
+    assert IO.unit(a).attempt().run() == Ok(a)
+
+
+def test_attempt_failure_is_err_and_does_not_raise():
+    boom = RuntimeError("boom")
+
+    def _raise() -> int:
+        raise boom
+
+    assert IO(_raise).attempt().run() == Err(boom)
+
+
+def test_attempt_is_lazy():
+    log: Log = []
+    _ = tick(log, "e").attempt()
+    assert log == []
