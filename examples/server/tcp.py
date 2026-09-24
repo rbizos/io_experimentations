@@ -12,12 +12,32 @@ is reported without killing the server.
 import asyncio
 import dataclasses
 from collections.abc import Callable
+from typing import Protocol
 
 from monads import IO, Err, Ok, Result
 
 
+class Connection(Protocol):
+    """What a handler can do with a connection; implemented over sockets by StreamConnection."""
+
+    @property
+    def peer(self) -> str: ...
+
+    def read_until(self, separator: bytes) -> IO[bytes]:
+        """Fails if the peer closes before `separator`."""
+        ...
+
+    def read_exactly(self, n: int) -> IO[bytes]:
+        """Fails if the peer closes before `n` bytes."""
+        ...
+
+    def write(self, data: bytes) -> IO[None]: ...
+
+    def close(self) -> IO[None]: ...
+
+
 @dataclasses.dataclass(frozen=True)
-class Connection:
+class StreamConnection:
     _reader: asyncio.StreamReader
     _writer: asyncio.StreamWriter
 
@@ -27,7 +47,6 @@ class Connection:
         return f"{host}:{port}"
 
     def read_until(self, separator: bytes) -> IO[bytes]:
-        """Fails with IncompleteReadError if the peer closes before `separator`."""
         return IO.from_async(lambda: self._reader.readuntil(separator))
 
     def read_exactly(self, n: int) -> IO[bytes]:
@@ -59,7 +78,7 @@ def serve(host: str, port: int, handler: ConnectionHandler) -> IO[None]:
         )
 
     async def _on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        await _session(Connection(reader, writer)).run_async()
+        await _session(StreamConnection(reader, writer)).run_async()
 
     async def _serve() -> None:
         server = await asyncio.start_server(_on_connect, host, port)
